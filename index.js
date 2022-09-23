@@ -1,10 +1,12 @@
 const {writeFile} = require('fs');
 const {join} = require('path');
-const request = require('request');
+
+//Import third-party libraries.
 const axios = require('axios');
 const blend = require('@mapbox/blend');
 const argv = require('minimist')(process.argv.slice(2));
 
+//Hardcoded params for get images from the API, If the user insert the values for params this hardcoded values will be overwritted.
 const {
   greeting = 'Hello',
   who = 'You',
@@ -14,16 +16,18 @@ const {
   size = 100,
 } = argv;
 
-const getImages = async (text, width, height, color, size) => {
-  const result = await axios
+//Reusable function for getting images from API service with dynamic params.
+const fetchImageHandler = async (text, width, height, color, size) => {
+  const res = await axios
     .get(`https://cataas.com/cat/says/${text}?width=${width}&height=${height}&color${color}&s=${size}`, {
       responseType: 'arraybuffer'
-    })
+    });
 
-  return result.data
-}
+  return res.data;
+};
 
-const blendImages = async (firstBody, secondBody) => {
+//Merge dynamic images to one frame with using blned package.
+const imagesBlendHandler = async (firstBody, secondBody) => {
   return new Promise((resolve, reject) => {
     blend([
         {buffer: new Buffer.from(firstBody, 'binary'), x: 0, y: 0},
@@ -41,10 +45,10 @@ const blendImages = async (firstBody, secondBody) => {
   });
 };
 
-const saveToFile = (data, fileName) => {
+//Save merged image to the file system with dynamic file name.
+const saveBlendedImageToFile = (data, fileName) => {
   return new Promise((resolve, reject) => {
     const fileOut = join(process.cwd(), `/${fileName}.jpg`);
-
     writeFile(fileOut, data, 'binary', (err) => {
       if (err) {
         reject(err);
@@ -52,26 +56,25 @@ const saveToFile = (data, fileName) => {
         resolve();
       }
     });
-  })
-}
+  });
+};
 
+//Main function of the program.
 const main = async () => {
   try {
-    console.log('Loading..')
-
+    console.log('Loading..');
     const [image1, image2] = await Promise.all([
-      getImages(greeting, width, height, color, size),
-      getImages(who, width, height, color, size)
+      fetchImageHandler(greeting, width, height, color, size),
+      fetchImageHandler(who, width, height, color, size)
     ])
 
-    const blendedImage = await blendImages(image1, image2)
-
-    await saveToFile(blendedImage, `${greeting}-${who}`)
-
-    console.log('The file was saved!')
+    const blendedImage = await imagesBlendHandler(image1, image2)
+    await saveBlendedImageToFile(blendedImage, `${greeting}-${who}`)
+    console.log('The file was saved!');
   } catch (e) {
-    console.log('Something went wrong!', e)
+    console.log('Something went wrong!', e);
   }
-}
+};
 
-main()
+//Main function calling..
+main();
